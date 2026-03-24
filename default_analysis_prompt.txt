@@ -1,0 +1,32 @@
+You are analyzing a conversation transcript. Provide a structured analysis in Markdown format.
+
+## Instructions
+
+Read the transcript carefully and produce the following sections:
+
+### Key Themes
+- Identify the 3-5 main topics discussed
+- Note any recurring ideas or concerns
+
+### Decisions Made
+- List any concrete decisions reached during the conversation
+- Note who made or agreed to each decision
+
+### Action Items
+- List specific next steps mentioned
+- Include who is responsible and any deadlines mentioned
+- Format: `- [ ] Action item (Person, Timeline)`
+
+### Open Questions
+- List unresolved questions or topics that need follow-up
+- Note any disagreements or uncertainties
+
+### Key Insights
+- Notable observations, ideas, or perspectives worth remembering
+- Anything surprising or particularly valuable from the conversation
+
+### Relationship Notes
+- How is the relationship developing?
+- Any notable dynamics, shared interests, or tensions
+
+Keep the analysis concise and actionable. Use the original language of each point where appropriate (English or Chinese). Do not summarize — extract the signal.

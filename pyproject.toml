@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vox"
+version = "0.1.0"
+description = "Voice recording pipeline automation"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31",
+    "PyYAML>=6.0",
+    "urllib3>=2.0",
+]
+
+[project.scripts]
+vox = "vox.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["vox*"]
