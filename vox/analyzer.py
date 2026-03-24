@@ -32,7 +32,7 @@ def analyze(transcript: str, prompt_path: str | Path | None = None) -> str | Non
     try:
         print("  Running analysis via codex...")
         result = subprocess.run(
-            ["codex", "exec", tmp_path],
+            ["codex", "exec", "--skip-git-repo-check", tmp_path],
             capture_output=True,
             text=True,
             timeout=TIMEOUT_SEC,
