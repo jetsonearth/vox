@@ -34,6 +34,7 @@ assert make_audio_filename(date(2026, 3, 23), "terry-chen") == "2026-03-23-terry
 
 # make_transcript_filename
 assert make_transcript_filename(date(2026, 3, 23), "terry-chen") == "2026-03-23-terry-chen.md"
+# Vault transcripts from vox are .txt (see make_transcript_txt_filename)
 
 # make_note_title
 assert make_note_title(date(2026, 3, 23), "Terry Chen") == "2026-03-23 Terry Chen"
@@ -304,15 +305,15 @@ Find a real `.m4a` file and run:
 ```
 
 Verify:
-- [ ] Audio copied to `~/Voice/archive/2026/03/2026-03-22-terry-chen.m4a`
-- [ ] Speaker confirmation prompt appears with preview text
-- [ ] Transcript saved to `~/My Vault/Conversations/Transcripts/2026-03-22-terry-chen.md`
+- [ ] Audio **moved** to `~/Voice/archive/2026/03/2026-03-22-terry-chen.m4a` (no duplicate in original folder)
+- [ ] Transcript `.txt` saved right after transcription: `~/My Vault/Conversations/Transcripts/2026-03-22-terry-chen.txt`
+- [ ] By default: no `Map speakers to names?` prompt; with `--name-speakers`, prompts appear as before
 - [ ] Conversation note created at `~/My Vault/Conversations/2026-03-22 Terry Chen.md`
 - [ ] Note has correct frontmatter (`date`, `people: [[Terry Chen]]`, `tags`)
-- [ ] Note has `[[Transcripts/2026-03-22-terry-chen.md]]` embed
+- [ ] Note has `[[Transcripts/2026-03-22-terry-chen.txt]]` embed
 - [ ] Daily note `~/My Vault/Calendar/2026-03-22.md` exists and has `[[2026-03-22 Terry Chen]]` link
-- [ ] If codex is available: `## Analysis` section is populated
-- [ ] If codex is not available: `## Analysis` has placeholder text
+- [ ] If codex is available: `# Analysis` section is populated
+- [ ] If codex is not available: `# Analysis` has placeholder text
 
 ## Running All Unit Tests
 

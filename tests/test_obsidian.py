@@ -29,7 +29,7 @@ def test_save_transcript():
         cfg = {"vault_path": tmpdir}
         (Path(tmpdir) / "Conversations" / "Transcripts").mkdir(parents=True)
         filename = save_transcript(date(2026, 3, 23), "terry-chen", "Hello world transcript", cfg)
-        assert filename == "2026-03-23-terry-chen.md"
+        assert filename == "2026-03-23-terry-chen.txt"
         saved = (Path(tmpdir) / "Conversations" / "Transcripts" / filename).read_text()
         assert saved == "Hello world transcript"
 

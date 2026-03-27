@@ -19,6 +19,12 @@ DEFAULTS: dict[str, Any] = {
     "no_proxy": True,
     "language_hints": ["en", "zh"],
     "post_process_hook": "",
+    # Diarization & voiceprint settings
+    "hf_token": "",
+    "enable_diarization": False,
+    "diarization_device": "auto",
+    "voiceprint_threshold": 0.65,
+    "auto_learn_voiceprints": True,
 }
 
 
@@ -67,6 +73,10 @@ def prm_relationships_dir(cfg: dict[str, Any]) -> Path:
     return vault_path(cfg) / "PRM" / "Relationships"
 
 
+def voiceprints_dir(cfg: dict[str, Any]) -> Path:
+    return CONFIG_DIR / "voiceprints"
+
+
 def ensure_dirs(cfg: dict[str, Any]) -> None:
     """Create all required directories if they don't exist."""
     for d in [
@@ -74,5 +84,6 @@ def ensure_dirs(cfg: dict[str, Any]) -> None:
         conversations_dir(cfg),
         transcripts_dir(cfg),
         calendar_dir(cfg),
+        voiceprints_dir(cfg),
     ]:
         d.mkdir(parents=True, exist_ok=True)

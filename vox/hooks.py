@@ -8,6 +8,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from . import ui
+
 
 def run_hook(
     cfg: dict[str, Any],
@@ -24,7 +26,7 @@ def run_hook(
 
     hook_path = Path(hook).expanduser()
     if not hook_path.exists():
-        print(f"  Hook not found: {hook_path} — skipping.")
+        ui.warn(f"Hook not found: {hook_path} — skipping.")
         return
 
     env = os.environ.copy()
@@ -35,7 +37,7 @@ def run_hook(
     if transcript_path:
         env["VOX_TRANSCRIPT_PATH"] = str(transcript_path)
 
-    print(f"  Running hook: {hook_path}")
+    ui.info(f"Running hook: {hook_path}")
     try:
         result = subprocess.run(
             [str(hook_path)],
@@ -45,12 +47,12 @@ def run_hook(
             timeout=60,
         )
         if result.stdout.strip():
-            print(f"  Hook output: {result.stdout.strip()}")
+            ui.muted(f"Hook stdout: {result.stdout.strip()}")
         if result.returncode != 0:
-            print(f"  Hook exited with code {result.returncode}")
+            ui.warn(f"Hook exited with code {result.returncode}")
             if result.stderr.strip():
-                print(f"  Hook stderr: {result.stderr.strip()}")
+                ui.muted(f"Hook stderr: {result.stderr.strip()}")
     except subprocess.TimeoutExpired:
-        print("  Hook timed out after 60s.")
+        ui.warn("Hook timed out after 60s.")
     except Exception as e:
-        print(f"  Hook error: {e}")
+        ui.err(f"Hook error: {e}")

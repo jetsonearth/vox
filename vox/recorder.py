@@ -9,6 +9,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from . import ui
+
 
 def check_sox() -> bool:
     """Return True if sox is available."""
@@ -32,9 +34,9 @@ def record(output_path: str | Path | None = None) -> Path:
     tmp_wav = tempfile.mktemp(suffix=".wav")
 
     cmd = ["sox", "-d", "-r", "44100", "-c", "1", tmp_wav]
-    print("Recording... (press Enter to stop)")
+    ui.recording_hint()
 
-    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
     try:
         # Wait for Enter key in a thread-safe way
@@ -61,23 +63,24 @@ def record(output_path: str | Path | None = None) -> Path:
 
         m4a_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            subprocess.run(
-                ["ffmpeg", "-i", tmp_wav, "-c:a", "aac", "-b:a", "128k", "-y", str(m4a_path)],
-                capture_output=True, check=True,
-            )
+            with ui.spinner("Converting to M4A…"):
+                subprocess.run(
+                    ["ffmpeg", "-i", tmp_wav, "-c:a", "aac", "-b:a", "128k", "-y", str(m4a_path)],
+                    capture_output=True, check=True,
+                )
             wav_path.unlink()
-            print(f"Recorded: {m4a_path}")
+            ui.ok(f"Recorded {m4a_path}")
             return m4a_path
         except subprocess.CalledProcessError:
             # Fall back to WAV
-            print("ffmpeg conversion failed, keeping WAV.")
+            ui.warn("ffmpeg conversion failed, keeping WAV.")
 
     if output_path:
         final = Path(output_path).with_suffix(".wav")
         final.parent.mkdir(parents=True, exist_ok=True)
         wav_path.rename(final)
-        print(f"Recorded: {final}")
+        ui.ok(f"Recorded {final}")
         return final
 
-    print(f"Recorded: {wav_path}")
+    ui.ok(f"Recorded {wav_path}")
     return wav_path

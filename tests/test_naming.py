@@ -9,6 +9,7 @@ from vox.naming import (
     make_note_title,
     make_slug,
     make_transcript_filename,
+    make_transcript_txt_filename,
 )
 
 
@@ -32,6 +33,10 @@ def test_make_audio_filename():
 
 def test_make_transcript_filename():
     assert make_transcript_filename(date(2026, 3, 23), "terry-chen") == "2026-03-23-terry-chen.md"
+
+
+def test_make_transcript_txt_filename():
+    assert make_transcript_txt_filename(date(2026, 3, 23), "terry-chen") == "2026-03-23-terry-chen.txt"
 
 
 def test_make_note_title():

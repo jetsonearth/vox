@@ -45,12 +45,21 @@ def make_audio_filename(d: date, slug: str) -> str:
 
 
 def make_transcript_filename(d: date, slug: str) -> str:
-    """Build the transcript filename (Markdown in Obsidian Transcripts folder).
+    """Build the transcript filename (legacy ``.md``; prefer ``make_transcript_txt_filename``).
 
     >>> make_transcript_filename(date(2026, 3, 23), "terry-gridmind")
     '2026-03-23-terry-gridmind.md'
     """
     return f"{d.isoformat()}-{slug}.md"
+
+
+def make_transcript_txt_filename(d: date, slug: str) -> str:
+    """Plain-text transcript in Obsidian Transcripts folder (Soniox ``Speaker N:`` lines).
+
+    >>> make_transcript_txt_filename(date(2026, 3, 23), "terry-gridmind")
+    '2026-03-23-terry-gridmind.txt'
+    """
+    return f"{d.isoformat()}-{slug}.txt"
 
 
 def make_note_title(d: date, display_name: str) -> str:

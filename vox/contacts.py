@@ -6,6 +6,8 @@ import difflib
 from pathlib import Path
 from typing import Any
 
+from . import ui
+
 
 def scan_contacts(relationships_dir: Path) -> dict[str, Path]:
     """Recursively scan PRM/Relationships/ for .md files.
@@ -20,7 +22,17 @@ def scan_contacts(relationships_dir: Path) -> dict[str, Path]:
     return contacts
 
 
-def fuzzy_match(name: str, contacts: dict[str, Path], threshold: float = 0.5) -> str | None:
+def _canonical_user_name(raw: str, cfg: dict[str, Any]) -> str | None:
+    """If ``raw`` matches ``user_name`` in config (case-insensitive), return canonical name."""
+    me = (cfg.get("user_name") or "").strip()
+    if not me:
+        return None
+    if raw.strip().lower() == me.lower():
+        return me
+    return None
+
+
+def fuzzy_match(name: str, contacts: dict[str, Path], threshold: float = 0.4) -> str | None:
     """Find the closest matching contact name. Returns None if no good match."""
     if not contacts:
         return None
@@ -32,9 +44,10 @@ def resolve_people(raw_names: list[str], cfg: dict[str, Any]) -> list[str]:
     """Resolve a list of raw name inputs to vault contact names.
 
     For each name:
-    1. Try exact match (case-insensitive)
-    2. Try fuzzy match
-    3. If no match, offer to create a stub card
+    1. Try exact match (case-insensitive) in PRM/Relationships
+    2. Try match against ``user_name`` in config (you — no stub card)
+    3. Try fuzzy match in PRM
+    4. If no match, offer to create a stub card
     """
     from . import config as c
 
@@ -55,6 +68,12 @@ def resolve_people(raw_names: list[str], cfg: dict[str, Any]) -> list[str]:
             resolved.append(lower_map[raw.lower()])
             continue
 
+        # Config user_name = self (no PRM stub for your own name)
+        self_name = _canonical_user_name(raw, cfg)
+        if self_name is not None:
+            resolved.append(self_name)
+            continue
+
         # Fuzzy match
         match = fuzzy_match(raw, contacts)
         if match:
@@ -65,7 +84,7 @@ def resolve_people(raw_names: list[str], cfg: dict[str, Any]) -> list[str]:
 
         # No match — use as-is (title-cased)
         display = raw.title() if raw.isascii() else raw
-        print(f"  New contact: {display}")
+        ui.info(f"New contact: {display}")
         create = input(f"  Create stub card for {display}? [Y/n]: ").strip().lower()
         if create in ("", "y", "yes"):
             _create_stub(relationships_dir, display)
@@ -84,4 +103,4 @@ def _create_stub(relationships_dir: Path, name: str) -> None:
         f"---\nname: {name}\ntags: #contact\n---\n\n## Notes\n\n",
         encoding="utf-8",
     )
-    print(f"  Created: {card_path}")
+    ui.ok(f"Stub card → {card_path}")

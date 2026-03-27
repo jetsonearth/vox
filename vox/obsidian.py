@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from pathlib import Path
 from typing import Any
 
 from . import config as c
 from . import naming
+from . import ui
 
 
 def build_frontmatter(
@@ -52,48 +54,65 @@ def create_conversation_note(
     if note_path.exists():
         action = input(f"Note already exists: {note_path.name}\n  [o]verwrite / [a]ppend analysis / [s]kip: ").strip().lower()
         if action == "s":
-            print(f"  Skipped: {note_path}")
+            ui.muted(f"Skipped note: {note_path}")
             return note_path
         elif action == "a" and analysis:
             existing = note_path.read_text(encoding="utf-8")
-            if "## Analysis" in existing:
-                existing = existing.split("## Analysis")[0].rstrip() + "\n\n"
-            note_path.write_text(existing + f"## Analysis\n\n{analysis}\n", encoding="utf-8")
-            print(f"  Analysis appended: {note_path}")
+            if "# Analysis" in existing:
+                head = existing.split("# Analysis", 1)[0]
+            elif "## Analysis" in existing:
+                head = existing.split("## Analysis", 1)[0]
+            else:
+                head = existing
+            head = head.rstrip()
+            head = re.sub(r"\n---\s*$", "", head).rstrip()
+            note_path.write_text(
+                head + "\n\n---\n\n# Analysis\n\n" + analysis.lstrip("\n") + "\n",
+                encoding="utf-8",
+            )
+            ui.ok(f"Analysis appended → {note_path}")
             return note_path
         # else: overwrite
 
     frontmatter = build_frontmatter(d, people, topic, projects, tags)
-    body_parts = [frontmatter, ""]
-
-    # Transcript embed
-    body_parts.append("## Transcript")
-    body_parts.append("")
-    body_parts.append(f"[[Transcripts/{transcript_filename}]]")
-    body_parts.append("")
-
-    # Analysis section
-    body_parts.append("## Analysis")
-    body_parts.append("")
+    body_parts = [
+        frontmatter,
+        "# Transcript",
+        "",
+        f"[[Transcripts/{transcript_filename}]]",
+        "",
+        "---",
+        "",
+        "# Analysis",
+        "",
+    ]
     if analysis:
-        body_parts.append(analysis)
+        body_parts.append(analysis.lstrip("\n"))
     else:
         body_parts.append("*(Run analysis to populate this section)*")
     body_parts.append("")
 
     note_path.parent.mkdir(parents=True, exist_ok=True)
     note_path.write_text("\n".join(body_parts), encoding="utf-8")
-    print(f"  Conversation note: {note_path}")
+    ui.ok(f"Conversation note → {note_path}")
     return note_path
 
 
-def save_transcript(d: date, slug: str, transcript_text: str, cfg: dict[str, Any]) -> str:
-    """Save transcript to Conversations/Transcripts/. Returns the filename."""
-    filename = naming.make_transcript_filename(d, slug)
+def save_transcript(
+    d: date,
+    slug: str,
+    transcript_text: str,
+    cfg: dict[str, Any],
+    *,
+    announce: bool = True,
+) -> str:
+    """Save transcript as ``.txt`` under Conversations/Transcripts/. Returns the filename."""
+    filename = naming.make_transcript_txt_filename(d, slug)
     transcript_path = c.transcripts_dir(cfg) / filename
     transcript_path.parent.mkdir(parents=True, exist_ok=True)
     transcript_path.write_text(transcript_text, encoding="utf-8")
-    print(f"  Transcript saved: {transcript_path}")
+    if announce:
+        ui.ok(f"Transcript saved → {transcript_path}")
     return filename
 
 
@@ -124,7 +143,7 @@ def ensure_daily_note(d: date, cfg: dict[str, Any]) -> Path:
             content = f"# {d.isoformat()}\n\n## Log\n\n## Conversations\n\n## Tomorrow\n"
         daily_path.parent.mkdir(parents=True, exist_ok=True)
         daily_path.write_text(content, encoding="utf-8")
-        print(f"  Created daily note: {daily_path}")
+        ui.ok(f"Created daily note → {daily_path}")
 
     return daily_path
 
@@ -151,4 +170,4 @@ def append_to_conversations_section(daily_path: Path, note_title: str) -> None:
         content = content.rstrip() + f"\n\n## Conversations\n- {wikilink}\n"
 
     daily_path.write_text(content, encoding="utf-8")
-    print(f"  Linked in daily note: {wikilink}")
+    ui.ok(f"Linked in daily note: {wikilink}")
