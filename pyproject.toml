@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 vox = "vox.cli:main"
+vox-server = "vox.server:main"
 
 [project.optional-dependencies]
 diarize = [
@@ -24,6 +25,10 @@ diarize = [
     "pyannote-audio>=3.3",
     "speechbrain>=1.0",
     "numpy>=1.24",
+]
+server = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
 ]
 
 [tool.setuptools.packages.find]

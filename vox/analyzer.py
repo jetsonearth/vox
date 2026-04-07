@@ -87,6 +87,107 @@ def analyze(transcript: str, prompt_path: str | Path | None = None) -> str | Non
         Path(tmp_path).unlink(missing_ok=True)
 
 
+def identify_speakers(
+    transcript: str,
+    participant_names: list[str],
+    user_name: str = "Jetson",
+) -> dict[str, str] | None:
+    """Use codex to map Speaker N labels to real names based on context.
+
+    Returns a mapping like ``{"Speaker 2": "Jetson", "Speaker 3": "Alex"}``
+    or None on failure.
+    """
+    if not _check_codex():
+        ui.muted("codex not on PATH - skipping speaker identification.")
+        return None
+
+    from .speaker import extract_speakers
+
+    speakers = extract_speakers(transcript)
+    if not speakers:
+        return None
+
+    all_names = [user_name] + participant_names
+
+    prompt = f"""You are given a diarized conversation transcript where speakers are labeled {', '.join(speakers)}.
+
+The participants in this conversation are: {', '.join(all_names)}.
+{user_name} is the person who recorded this conversation.
+
+Your task: determine which speaker label corresponds to which real person.
+Use contextual clues like:
+- Who addresses whom by name
+- Self-references ("I work at...", "my company...")
+- Speaking patterns, language, topics
+- Who would logically say what given their role
+
+IMPORTANT: Return ONLY a valid JSON object mapping speaker labels to names.
+No explanation, no markdown, no code blocks. Just the raw JSON.
+
+Example output:
+{{"Speaker 2": "Jetson", "Speaker 3": "Alex"}}
+
+---
+
+TRANSCRIPT (first 3000 chars):
+
+{transcript[:3000]}
+"""
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".txt", delete=False, encoding="utf-8"
+    ) as tmp:
+        tmp.write(prompt)
+        tmp_path = tmp.name
+
+    try:
+        with ui.spinner("Identifying speakers via LLM..."):
+            result = subprocess.run(
+                [
+                    "codex", "exec",
+                    "-m", "gpt-5.4",
+                    "--skip-git-repo-check",
+                    tmp_path,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=str(_VOX_PROJECT_DIR),
+            )
+        if result.returncode != 0:
+            ui.warn("Speaker identification failed")
+            return None
+
+        import json
+
+        raw = result.stdout.strip()
+        # Strip markdown code block if present
+        if raw.startswith("```"):
+            raw = re.sub(r"^```(?:json)?\s*", "", raw)
+            raw = re.sub(r"\s*```$", "", raw)
+
+        mapping = json.loads(raw)
+        if not isinstance(mapping, dict):
+            return None
+
+        # Validate: all values should be from our name list
+        valid_mapping = {}
+        for label, name in mapping.items():
+            if label in speakers and name in all_names:
+                valid_mapping[label] = name
+
+        if valid_mapping:
+            ui.ok(f"Speaker mapping: {valid_mapping}")
+            return valid_mapping
+        return None
+
+    except (json.JSONDecodeError, subprocess.TimeoutExpired, FileNotFoundError) as e:
+        ui.warn(f"Speaker identification error: {e}")
+        return None
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+
 def _check_codex() -> bool:
     """Return True if codex is available on PATH."""
     import shutil

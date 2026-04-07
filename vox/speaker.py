@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
+from typing import Any
 
 from . import ui
 
@@ -195,3 +197,84 @@ def _extract_diar_speakers(transcript: str) -> list[str]:
             seen.add(label)
             speakers.append(label)
     return speakers
+
+
+# ---------------------------------------------------------------------------
+# Non-interactive API (for server / GUI use)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SpeakerPreview:
+    """Preview data for a single speaker, used by the flashcard UI."""
+
+    label: str  # e.g. "SPEAKER_00"
+    text_snippet: str  # first few sentences
+    best_segment_start_sec: float  # start of longest segment (for audio clip)
+    best_segment_end_sec: float  # end of longest segment
+
+
+def get_speaker_previews(
+    transcript: str,
+    segments: "list[Any]",
+) -> list[SpeakerPreview]:
+    """Build preview data for each speaker in the transcript.
+
+    ``segments`` should be a list of ``DiarSegment`` objects.
+    Returns a list of ``SpeakerPreview`` in order of appearance.
+    """
+    speakers = _extract_diar_speakers(transcript)
+    if not speakers:
+        speakers = extract_speakers(transcript)
+    if not speakers:
+        return []
+
+    # Group segments by speaker, find the longest one per speaker
+    from collections import defaultdict
+
+    seg_by_speaker: dict[str, list[Any]] = defaultdict(list)
+    for seg in segments:
+        seg_by_speaker[seg.speaker].append(seg)
+
+    previews: list[SpeakerPreview] = []
+    for label in speakers:
+        # Text preview
+        preview_text = get_preview(transcript, label, max_sentences=3)
+        clean = re.sub(r"\[(?:en|zh|[a-z]{2})\]\s*", "", preview_text)
+        snippet = clean[:200]
+
+        # Best audio clip: longest segment (2-8 seconds ideal)
+        segs = seg_by_speaker.get(label, [])
+        if segs:
+            # Prefer segments between 2-8 seconds, fall back to longest
+            good_segs = [s for s in segs if 2.0 <= (s.end_sec - s.start_sec) <= 8.0]
+            if good_segs:
+                best = max(good_segs, key=lambda s: s.end_sec - s.start_sec)
+            else:
+                best = max(segs, key=lambda s: s.end_sec - s.start_sec)
+            start = best.start_sec
+            end = min(best.end_sec, best.start_sec + 8.0)  # cap at 8s
+        else:
+            start = 0.0
+            end = 5.0
+
+        previews.append(SpeakerPreview(
+            label=label,
+            text_snippet=snippet,
+            best_segment_start_sec=start,
+            best_segment_end_sec=end,
+        ))
+
+    return previews
+
+
+def apply_speaker_mapping(transcript: str, mapping: dict[str, str]) -> str:
+    """Non-interactive speaker label replacement.
+
+    ``mapping`` is ``{speaker_label: human_name}``, e.g.
+    ``{"SPEAKER_00": "Jetson", "SPEAKER_01": "Kay"}``.
+    """
+    result = transcript
+    for label, name in mapping.items():
+        result = result.replace(f"{label}:", f"{name}:")
+    return result

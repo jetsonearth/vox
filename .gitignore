@@ -5,3 +5,8 @@ __pycache__/
 dist/
 build/
 .DS_Store
+
+# VoxNotch build artifacts
+VoxNotch/.build/
+VoxNotch/.swiftpm/
+

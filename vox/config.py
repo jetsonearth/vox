@@ -9,10 +9,11 @@ import yaml
 
 CONFIG_DIR = Path.home() / ".vox"
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
+DEFAULT_VAULT_PATH = Path.home() / "my-vault"
 
 DEFAULTS: dict[str, Any] = {
     "user_name": "Jetson",
-    "vault_path": str(Path.home() / "My Vault"),
+    "vault_path": str(DEFAULT_VAULT_PATH),
     "audio_archive": str(Path.home() / "Voice" / "archive"),
     "soniox_api_key": "",
     "force_tls12": True,

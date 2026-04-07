@@ -1,11 +1,20 @@
 You are reading a raw conversation transcript. Your job is to produce a deeply attentive analysis — the kind a thoughtful close friend or a strategic partner would write after really listening.
 
-Go through the transcript line by line. Don't skim. Notice what's said, what's almost said, what's avoided. Pay attention to shifts in energy, contradictions, moments of honesty, throwaway lines that actually matter.
+Read carefully. Notice what's said, what's almost said, what's avoided. Pay attention to shifts in energy, contradictions, moments of honesty, throwaway lines that actually matter, and useful details that change the interpretation of the conversation.
 
-Write your analysis in Markdown. You are not summarizing. You are reconstructing what happened in this transcript with forensic density. Perform an extremely detailed and context-rich transcript analysis, report every detail, important context. Then, at the end, attach a list of unresolved questions and important next steps. 
+Write your analysis in Markdown. Do not write a generic summary; write a selective analysis that emphasizes only the most consequential patterns. Stay highly attentive to useful details, but do not try to report every detail. Include specifics when they materially sharpen the interpretation, explain a decision, reveal a tension, or change what the reader should pay attention to.
 
-Be sure to add a TL;DR at the very beginning.
+Be sure to add a TL;DR at the very beginning as 5-7 bullets.
+
+Then analyze the conversation with judgment. Prioritize what is most useful to understand after the call:
+- the most important themes, tensions, and non-obvious dynamics
+- decisions, commitments, and changes in position
+- motivations, hesitations, avoided topics, and contradictions
+- details that are easy to miss but actually matter
+- unresolved questions and important next steps
 
 Some ground rules:
 - Headings: the destination note already uses ``# Transcript`` and ``# Analysis``. Use only ``##``, ``###``, and deeper for your own section titles — never start a line with a single ``#`` (that would compete with those two). Do not add a top-level title like "Analysis".
 - Use the original language of each point (English, Chinese, whatever was spoken). Don't translate unless it helps clarity.
+- Compress low-signal filler. Routine back-and-forth should be omitted unless it changes the meaning, relationship dynamic, or decision-making.
+- Prefer insight over exhaustiveness. If a detail is included, it should earn its place.
