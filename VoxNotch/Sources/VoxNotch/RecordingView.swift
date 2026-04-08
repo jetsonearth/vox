@@ -4,24 +4,24 @@ import SwiftUI
 
 struct RecordingView: View {
     @EnvironmentObject var vm: VoxViewModel
-    @State private var pulse = false
+    @ObservedObject private var recorder = AudioRecorder.shared
+
+    // Each bar gets a slightly different scale from the audio level
+    private let barOffsets: [Float] = [0.6, 0.85, 1.0, 0.75, 0.5]
 
     var body: some View {
         HStack(spacing: 0) {
-            // LEFT of notch: red dot + timer
-            HStack(spacing: 6) {
-                ZStack {
-                    Circle()
-                        .fill(.red.opacity(0.25))
-                        .frame(width: 14, height: 14)
-                        .scaleEffect(pulse ? 1.4 : 0.7)
-
-                    Circle()
-                        .fill(.red)
-                        .frame(width: 6, height: 6)
+            // LEFT of notch: waveform bars + timer
+            HStack(spacing: 8) {
+                // Live waveform bars driven by mic level
+                HStack(spacing: 2) {
+                    ForEach(0..<5, id: \.self) { i in
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(.red.opacity(0.6))
+                            .frame(width: 2, height: barHeight(index: i))
+                    }
                 }
-                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: pulse)
-                .onAppear { pulse = true }
+                .animation(.easeOut(duration: 0.08), value: recorder.audioLevel)
 
                 Text(vm.formattedElapsed)
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
@@ -35,26 +35,10 @@ struct RecordingView: View {
                 .fill(.black)
                 .frame(width: vm.closedNotchSize.width - 10)
 
-            // RIGHT of notch: waveform + controls
-            HStack(spacing: 8) {
-                // Mini waveform
-                HStack(spacing: 2) {
-                    ForEach(0..<5, id: \.self) { i in
-                        RoundedRectangle(cornerRadius: 1)
-                            .fill(.red.opacity(0.5))
-                            .frame(width: 2, height: barHeight(index: i))
-                            .animation(
-                                .easeInOut(duration: 0.4 + Double(i) * 0.1)
-                                    .repeatForever(autoreverses: true)
-                                    .delay(Double(i) * 0.08),
-                                value: pulse
-                            )
-                    }
-                }
-
-                // Stop
+            // RIGHT of notch: stop + abort
+            HStack(spacing: 6) {
                 Button {
-                    withAnimation(.spring(response: 0.3)) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         vm.stopRecording()
                     }
                 } label: {
@@ -67,9 +51,8 @@ struct RecordingView: View {
                 }
                 .buttonStyle(.plain)
 
-                // Abort
                 Button {
-                    withAnimation(.spring(response: 0.3)) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         vm.abortRecording()
                     }
                 } label: {
@@ -88,7 +71,9 @@ struct RecordingView: View {
     }
 
     private func barHeight(index: Int) -> CGFloat {
-        let offsets: [CGFloat] = [6, 10, 14, 8, 5]
-        return pulse ? offsets[index] : 4
+        let level = CGFloat(recorder.audioLevel * barOffsets[index])
+        let minH: CGFloat = 3
+        let maxH: CGFloat = 14
+        return minH + level * (maxH - minH)
     }
 }

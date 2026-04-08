@@ -24,7 +24,35 @@ struct VoxNotchApp: App {
                 Button("Idle") { Task { @MainActor in appDelegate.vm.voxState = .idle; appDelegate.vm.notchState = .closed } }
                 Button("Recording") { Task { @MainActor in appDelegate.vm.voxState = .recording; appDelegate.vm.notchState = .open; appDelegate.vm.recordingElapsed = 42 } }
                 Button("Transcribing") { Task { @MainActor in appDelegate.vm.voxState = .transcribing; appDelegate.vm.notchState = .open } }
-                Button("Configuring") { Task { @MainActor in appDelegate.vm.voxState = .configuring; appDelegate.vm.notchState = .open; appDelegate.vm.recordingElapsed = 185 } }
+                Button("Configuring") { Task { @MainActor in
+                    appDelegate.vm.voxState = .configuring; appDelegate.vm.notchState = .open; appDelegate.vm.recordingElapsed = 185
+                } }
+                Button("Identifying (2 speakers)") { Task { @MainActor in
+                    appDelegate.vm.speakerPreviews = [
+                        SpeakerPreview(id: "Speaker 1", label: "Speaker 1", textSnippet: "[en] Hey, how's it going?", clipStartSec: 0, clipEndSec: 5),
+                        SpeakerPreview(id: "Speaker 2", label: "Speaker 2", textSnippet: "[en] Good, thanks for asking.", clipStartSec: 10, clipEndSec: 15),
+                    ]
+                    appDelegate.vm.speakerMapping = [:]
+                    appDelegate.vm.participantNames = "Alex"
+                    appDelegate.vm.currentFlashcardIndex = 0
+                    appDelegate.vm.voxState = .identifying; appDelegate.vm.notchState = .open
+                } }
+                Button("Identifying (3 speakers)") { Task { @MainActor in
+                    appDelegate.vm.speakerPreviews = [
+                        SpeakerPreview(id: "Speaker 1", label: "Speaker 1", textSnippet: "[en] Hey, how's it going?", clipStartSec: 0, clipEndSec: 5),
+                        SpeakerPreview(id: "Speaker 2", label: "Speaker 2", textSnippet: "[en] Good, thanks.", clipStartSec: 10, clipEndSec: 15),
+                        SpeakerPreview(id: "Speaker 3", label: "Speaker 3", textSnippet: "[zh] OK cool.", clipStartSec: 20, clipEndSec: 25),
+                    ]
+                    appDelegate.vm.speakerMapping = [:]
+                    appDelegate.vm.participantNames = "Alex, Stash"
+                    appDelegate.vm.currentFlashcardIndex = 0
+                    appDelegate.vm.voxState = .identifying; appDelegate.vm.notchState = .open
+                } }
+                Button("Drop Zone") { Task { @MainActor in
+                    appDelegate.vm.resetSession()
+                    appDelegate.vm.debugDropZone = true
+                    appDelegate.vm.notchState = .open
+                } }
                 Button("Analyzing") { Task { @MainActor in appDelegate.vm.voxState = .analyzing; appDelegate.vm.notchState = .open } }
                 Button("Done") { Task { @MainActor in appDelegate.vm.voxState = .done; appDelegate.vm.notchState = .open; appDelegate.vm.sessionName = "Test Session" } }
             }

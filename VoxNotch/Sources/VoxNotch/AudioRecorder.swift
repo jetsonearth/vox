@@ -10,9 +10,11 @@ class AudioRecorder: ObservableObject {
 
     @Published var isRecording = false
     @Published var elapsed: TimeInterval = 0
+    @Published var audioLevel: Float = 0  // 0.0 to 1.0, updated ~20x/sec
 
     private var recorder: AVAudioRecorder?
     private var timer: Timer?
+    private var meterTimer: Timer?
     private var startTime: Date?
     private var outputURL: URL?
 
@@ -47,6 +49,7 @@ class AudioRecorder: ObservableObject {
         ]
 
         let rec = try AVAudioRecorder(url: url, settings: settings)
+        rec.isMeteringEnabled = true
         rec.prepareToRecord()
 
         if !rec.record() {
@@ -57,11 +60,27 @@ class AudioRecorder: ObservableObject {
         isRecording = true
         startTime = Date()
         elapsed = 0
+        audioLevel = 0
 
+        // Elapsed timer
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self = self, let start = self.startTime else { return }
                 self.elapsed = Date().timeIntervalSince(start)
+            }
+        }
+
+        // Audio level meter - ~20fps for smooth bar animation
+        meterTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self, let rec = self.recorder else { return }
+                rec.updateMeters()
+                let db = rec.averagePower(forChannel: 0)
+                // Convert dB (-160..0) to 0..1 range
+                // -50dB and below = silence, -10dB = loud
+                let normalized = max(0, min(1, (db + 50) / 40))
+                // Smooth it a bit
+                self.audioLevel = self.audioLevel * 0.3 + normalized * 0.7
             }
         }
     }
@@ -70,10 +89,13 @@ class AudioRecorder: ObservableObject {
     func stop() -> String? {
         timer?.invalidate()
         timer = nil
+        meterTimer?.invalidate()
+        meterTimer = nil
 
         guard let rec = recorder else { return nil }
         rec.stop()
         isRecording = false
+        audioLevel = 0
         recorder = nil
 
         guard let url = outputURL else { return nil }
@@ -92,11 +114,14 @@ class AudioRecorder: ObservableObject {
     func abort() {
         timer?.invalidate()
         timer = nil
+        meterTimer?.invalidate()
+        meterTimer = nil
 
         recorder?.stop()
         recorder = nil
         isRecording = false
         elapsed = 0
+        audioLevel = 0
 
         if let url = outputURL {
             try? FileManager.default.removeItem(at: url)

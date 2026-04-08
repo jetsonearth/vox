@@ -1,4 +1,4 @@
-// IdleView.swift - Hover expands to recording-bar shape with content beside the notch
+// IdleView.swift - Hover expands with content beside the notch
 
 import SwiftUI
 
@@ -12,7 +12,7 @@ struct IdleView: View {
     var body: some View {
         if isHovering {
             HStack(spacing: 0) {
-                // LEFT of notch: mic + text as a hoverable button
+                // LEFT of notch: record button
                 HStack(spacing: 8) {
                     Image(systemName: "mic.fill")
                         .font(.system(size: buttonHover ? 12 : 11))

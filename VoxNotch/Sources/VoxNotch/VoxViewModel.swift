@@ -87,6 +87,9 @@ class VoxViewModel: ObservableObject {
     // Error
     @Published var errorMessage: String?
 
+    // Debug
+    @Published var debugDropZone: Bool = false
+
     // Config from server
     @Published var userName: String = "Jetson"
 
@@ -105,32 +108,12 @@ class VoxViewModel: ObservableObject {
 
     var notchSize: CGSize {
         switch voxState {
-        case .idle:
+        case .idle, .recording, .transcribing, .analyzing, .done:
             return closedNotchSize
-        case .recording:
+        case .configuring, .identifying:
             return CGSize(
-                width: NotchSizing.recordingWidth,
-                height: closedNotchSize.height
-            )
-        case .transcribing, .analyzing:
-            return CGSize(
-                width: NotchSizing.recordingWidth,
-                height: closedNotchSize.height
-            )
-        case .configuring:
-            return CGSize(
-                width: NotchSizing.openWidth,
-                height: NotchSizing.configHeight
-            )
-        case .identifying:
-            return CGSize(
-                width: NotchSizing.openWidth,
-                height: NotchSizing.flashcardHeight
-            )
-        case .done:
-            return CGSize(
-                width: NotchSizing.doneWidth,
-                height: NotchSizing.doneHeight
+                width: NotchSizing.panelWidth,
+                height: NotchSizing.panelHeight
             )
         }
     }
@@ -200,6 +183,21 @@ class VoxViewModel: ObservableObject {
         voxState = .idle
         notchState = .closed
         recordingElapsed = 0
+    }
+
+    // MARK: - External audio (drag & drop)
+
+    func loadExternalAudio(path: String) {
+        resetSession()
+        audioPath = path
+        // Use filename (without extension) as default session name
+        let filename = (path as NSString).lastPathComponent
+        let name = (filename as NSString).deletingPathExtension
+            .replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: "_", with: " ")
+        sessionName = name
+        voxState = .configuring
+        notchState = .open
     }
 
     // MARK: - Processing
@@ -313,13 +311,11 @@ class VoxViewModel: ObservableObject {
     }
 
     var availableNames: [String] {
-        let assigned = Set(speakerMapping.values)
         let others = participantNames
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        let allNames = [userName] + others
-        return allNames.filter { !assigned.contains($0) }
+        return [userName] + others
     }
 
     func assignSpeaker(name: String) {
@@ -329,8 +325,35 @@ class VoxViewModel: ObservableObject {
         if unknownSpeakers.isEmpty {
             finalize()
         } else {
-            currentFlashcardIndex = 0  // reset since unknownSpeakers changed
+            currentFlashcardIndex = 0
         }
+    }
+
+    /// Skip the current speaker (keep its raw label)
+    func skipCurrentSpeaker() {
+        guard let speaker = currentFlashcardSpeaker else { return }
+        // Mark as "skipped" by mapping to its own label (no rename)
+        speakerMapping[speaker.label] = speaker.label
+
+        if unknownSpeakers.isEmpty {
+            finalize()
+        } else {
+            currentFlashcardIndex = 0
+        }
+    }
+
+    /// Undo the last speaker assignment
+    func undoLastSpeaker() {
+        // Find the most recently assigned speaker
+        let assigned = speakerPreviews.filter { speakerMapping[$0.label] != nil }
+        guard let last = assigned.last else { return }
+        speakerMapping.removeValue(forKey: last.label)
+        currentFlashcardIndex = 0
+    }
+
+    /// Skip remaining speakers and finalize with what we have
+    func skipRemainingAndFinalize() {
+        finalize()
     }
 
     // MARK: - Finalize
@@ -413,6 +436,7 @@ class VoxViewModel: ObservableObject {
         doneNotePath = ""
         errorMessage = nil
         recordingElapsed = 0
+        debugDropZone = false
     }
 
     // MARK: - Helpers

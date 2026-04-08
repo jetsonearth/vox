@@ -10,24 +10,18 @@ enum NotchSizing {
     static let closedCorners: (top: CGFloat, bottom: CGFloat) = (6, 14)
     static let openCorners: (top: CGFloat, bottom: CGFloat) = (19, 24)
 
-    // Config panel (compact)
-    static let openWidth: CGFloat = 380
-    static let configHeight: CGFloat = 210
+    // Standard dropdown panel - landscape rectangle (横向长方形)
+    static let panelWidth: CGFloat = 460
+    static let panelHeight: CGFloat = 220
 
-    // Flashcard panel (needs more room)
-    static let flashcardHeight: CGFloat = 300
+    // Thin rod is notch + 240 (set dynamically in ContentView)
 
-    // Recording thin rod - wider so controls are visible beside the notch
-    static let recordingWidth: CGFloat = 380
-
-    // Done toast
-    static let doneWidth: CGFloat = 260
-    static let doneHeight: CGFloat = 50
+    // Thin rod extra width (added to notch width)
+    static let thinRodExtra: CGFloat = 240
 
     // Window must be large enough for the biggest state
-    // Recording extends notch width + 200, so window needs headroom
-    static let windowWidth: CGFloat = 500
-    static let windowHeight: CGFloat = flashcardHeight + shadowPadding + 20
+    static let windowWidth: CGFloat = 520
+    static let windowHeight: CGFloat = panelHeight + shadowPadding + 20
 
     @MainActor
     static func closedSize(for screen: NSScreen? = nil) -> CGSize {

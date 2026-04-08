@@ -166,20 +166,56 @@ def _run_transcribe(job_id: str, req: TranscribeRequest) -> None:
         segments_data: list[dict] = []
         speaker_previews: list[dict] = []
 
-        # Extract Soniox speaker labels if present (Speaker 1, Speaker 2, etc.)
+        # Extract Soniox speaker labels, timing, and matching text from tokens
         if not use_pyannote:
-            from .speaker import extract_speakers, get_preview
+            from .speaker import extract_speakers
+
             soniox_speakers = extract_speakers(transcript)
             if soniox_speakers:
-                speaker_previews = [
-                    {
+                # Group tokens by speaker with text and timing
+                speaker_tokens: dict[str, list] = {}
+                for tok in result.tokens:
+                    if tok.speaker is not None:
+                        label = f"Speaker {tok.speaker}"
+                        speaker_tokens.setdefault(label, []).append(tok)
+
+                for label in soniox_speakers:
+                    toks = speaker_tokens.get(label, [])
+                    timed_toks = [t for t in toks if t.start_ms > 0]
+
+                    if timed_toks:
+                        # Merge consecutive tokens into runs
+                        segs = [(t.start_ms, t.end_ms) for t in timed_toks]
+                        runs = _merge_token_runs(segs)
+                        # Prefer 3-10 second clips for enough context
+                        good = [r for r in runs if 3.0 <= (r[1] - r[0]) / 1000 <= 10.0]
+                        best = max(good or runs, key=lambda r: r[1] - r[0])
+                        start_ms = best[0]
+                        end_ms = best[1]
+
+                        # Extract text from tokens that fall within this clip
+                        clip_text = ""
+                        for t in timed_toks:
+                            if t.start_ms >= start_ms and t.end_ms <= end_ms + 500:
+                                clip_text += t.text
+                        clip_text = clip_text.strip()[:500]
+                        if not clip_text:
+                            clip_text = " ".join(t.text for t in toks[:20]).strip()[:500]
+
+                        start_sec = start_ms / 1000
+                        end_sec = min(end_ms / 1000, start_sec + 10.0)
+                    else:
+                        # No timing info - use first tokens as text
+                        clip_text = " ".join(t.text for t in toks[:20]).strip()[:500]
+                        start_sec = 0.0
+                        end_sec = 5.0
+
+                    speaker_previews.append({
                         "label": label,
-                        "text_snippet": get_preview(transcript, label, max_sentences=2)[:200],
-                        "best_segment_start_sec": 0.0,
-                        "best_segment_end_sec": 5.0,
-                    }
-                    for label in soniox_speakers
-                ]
+                        "text_snippet": clip_text,
+                        "best_segment_start_sec": start_sec,
+                        "best_segment_end_sec": end_sec,
+                    })
                 logging.info(f"[transcribe] Soniox speakers found: {soniox_speakers}")
 
         if use_pyannote:
@@ -459,6 +495,23 @@ async def speaker_audio_clip(req: SpeakerClipRequest):
 # ---------------------------------------------------------------------------
 # Health / info
 # ---------------------------------------------------------------------------
+
+
+def _merge_token_runs(
+    segs: list[tuple[int, int]], gap_ms: int = 500
+) -> list[tuple[int, int]]:
+    """Merge token time ranges that are within gap_ms of each other into runs."""
+    if not segs:
+        return [(0, 5000)]
+    sorted_segs = sorted(segs, key=lambda s: s[0])
+    runs: list[tuple[int, int]] = [sorted_segs[0]]
+    for start, end in sorted_segs[1:]:
+        prev_start, prev_end = runs[-1]
+        if start - prev_end <= gap_ms:
+            runs[-1] = (prev_start, max(prev_end, end))
+        else:
+            runs.append((start, end))
+    return runs
 
 
 @app.get("/health")

@@ -1,6 +1,7 @@
 // ContentView.swift - Main notch view with smooth state transitions
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 @MainActor
 struct ContentView: View {
@@ -8,6 +9,9 @@ struct ContentView: View {
     @State private var isHovering = false
     @State private var hoverTask: Task<Void, Never>?
     @State private var gestureProgress: CGFloat = 0
+    @State private var isDragTargeted = false
+
+    private var isDropActive: Bool { isDragTargeted || vm.debugDropZone }
 
     // Bouncy spring - overshoots slightly then settles
     private let sizeSpring = Animation.spring(response: 0.4, dampingFraction: 0.7)
@@ -15,42 +19,47 @@ struct ContentView: View {
     // MARK: - Dynamic sizing
 
     private var topCornerRadius: CGFloat {
-        vm.isExpanded ? NotchSizing.openCorners.top : NotchSizing.closedCorners.top
+        isPanel ? NotchSizing.openCorners.top : NotchSizing.closedCorners.top
     }
 
     private var bottomCornerRadius: CGFloat {
-        vm.isExpanded ? NotchSizing.openCorners.bottom : NotchSizing.closedCorners.bottom
+        isPanel ? NotchSizing.openCorners.bottom : NotchSizing.closedCorners.bottom
     }
+
+    private var thinRodExtra: CGFloat { NotchSizing.thinRodExtra }
 
     private var notchWidth: CGFloat {
         switch vm.voxState {
+        case .idle where isDropActive:
+            return NotchSizing.panelWidth
         case .idle:
             return isHovering
-                ? vm.closedNotchSize.width + 200
+                ? vm.closedNotchSize.width + thinRodExtra
                 : vm.closedNotchSize.width
-        case .recording:
-            // Wide enough to show content in the auxiliary areas beside the notch
-            return vm.closedNotchSize.width + 200
-        case .transcribing, .analyzing, .done:
-            return vm.closedNotchSize.width + 200
+        case .recording, .transcribing, .analyzing, .done:
+            return vm.closedNotchSize.width + thinRodExtra
         case .configuring, .identifying:
-            return NotchSizing.openWidth
+            return NotchSizing.panelWidth
         }
     }
 
     private var notchHeight: CGFloat {
         switch vm.voxState {
+        case .idle where isDropActive:
+            return NotchSizing.panelHeight
         case .idle, .recording, .transcribing, .analyzing, .done:
             return vm.closedNotchSize.height
-        case .configuring:
-            return NotchSizing.configHeight
-        case .identifying:
-            return NotchSizing.flashcardHeight
+        case .configuring, .identifying:
+            return NotchSizing.panelHeight
         }
     }
 
+    private var isPanel: Bool {
+        vm.isExpanded || isDropActive
+    }
+
     private var showShadow: Bool {
-        vm.voxState != .idle || isHovering
+        vm.voxState != .idle || isHovering || isDropActive
     }
 
     // MARK: - Body
@@ -60,8 +69,8 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 notchBody
                     .frame(width: notchWidth, height: notchHeight)
-                    .padding(.horizontal, vm.isExpanded ? 12 : 0)
-                    .padding(.bottom, vm.isExpanded ? 12 : 0)
+                    .padding(.horizontal, isPanel ? 12 : 0)
+                    .padding(.bottom, isPanel ? 12 : 0)
                     .background(.black)
                     .clipShape(
                         NotchShape(
@@ -87,6 +96,9 @@ struct ContentView: View {
                     .onTapGesture {
                         handleTap()
                     }
+                    .onDrop(of: [.fileURL], isTargeted: $isDragTargeted) { providers in
+                        handleDrop(providers)
+                    }
             }
         }
         .frame(
@@ -97,6 +109,7 @@ struct ContentView: View {
         .compositingGroup()
         .animation(sizeSpring, value: vm.voxState)
         .animation(sizeSpring, value: isHovering)
+        .animation(sizeSpring, value: isDropActive)
         .preferredColorScheme(.dark)
     }
 
@@ -105,6 +118,8 @@ struct ContentView: View {
     @ViewBuilder
     private var notchBody: some View {
         switch vm.voxState {
+        case .idle where isDropActive:
+            DropZoneView()
         case .idle:
             IdleView(isHovering: isHovering)
         case .recording:
@@ -164,4 +179,26 @@ struct ContentView: View {
             break
         }
     }
+
+    private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
+        guard vm.voxState == .idle else { return false }
+
+        for provider in providers {
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                guard let data = item as? Data,
+                      let url = URL(dataRepresentation: data, relativeTo: nil),
+                      Self.audioExtensions.contains(url.pathExtension.lowercased())
+                else { return }
+
+                Task { @MainActor in
+                    vm.loadExternalAudio(path: url.path)
+                }
+            }
+        }
+        return true
+    }
+
+    private static let audioExtensions: Set<String> = [
+        "m4a", "mp3", "wav", "aac", "ogg", "flac", "mp4", "webm"
+    ]
 }
